@@ -1,5 +1,9 @@
 {
   "name": "erc721b",
+  "version": "0.1.0",
+  "files": [
+    "contracts"
+  ],
   "scripts": {
     "test": "hardhat test"
   },

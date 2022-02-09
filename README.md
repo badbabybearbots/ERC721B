@@ -1,7 +1,7 @@
 # ERC721B
 
 An improvement on the [ERC721A](https://github.com/chiru-labs/ERC721A) 
-implementation.[Read more](https://www.badbabybearbots.com/erc721b.html).
+implementation. [Read more](https://www.badbabybearbots.com/erc721b.html).
 
 Gas prices on Ethereum have been consistently high for months, and the 
 dev community needs to adapt. When popular NFT projects begin to mint, 
