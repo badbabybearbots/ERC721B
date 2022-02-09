@@ -90,12 +90,47 @@ contract ERC721BPresetAll is
   }
 
   /**
+   * @dev Pauses all token transfers.
+   *
+   * See {ERC721Pausable} and {Pausable-_pause}.
+   *
+   * Requirements:
+   *
+   * - the caller must have the `PAUSER_ROLE`.
+   */
+  function pause() public virtual onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  /**
    * @dev Allows curators to set the base token uri
    */
   function setBaseTokenURI(string memory uri) 
     external virtual onlyRole(CURATOR_ROLE)
   {
     _setBaseURI(uri);
+  }
+
+  /**
+   * @dev Allows curators to set a token uri
+   */
+  function setTokenURI(uint256 tokenId, string memory uri) 
+    external virtual onlyRole(CURATOR_ROLE)
+  {
+    _setTokenURI(tokenId, uri);
+  }
+
+  /**
+   * @dev Unpauses all token transfers.
+   *
+   * See {ERC721Pausable} and {Pausable-_unpause}.
+   *
+   * Requirements:
+   *
+   * - the caller must have the `PAUSER_ROLE`.
+   */
+  function unpause() public virtual onlyRole(PAUSER_ROLE) {
+    _unpause();
   }
 
   // ============ Internal Methods ============

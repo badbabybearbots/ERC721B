@@ -30,7 +30,7 @@ async function getSigners(name, ...params) {
   return signers
 }
 
-describe('ERC721B Tests', function () {
+describe('ERC721B Vanilla Tests', function () {
   before(async function() {
     const [
       contractOwner, 

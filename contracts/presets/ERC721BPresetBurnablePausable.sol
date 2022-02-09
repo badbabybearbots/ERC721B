@@ -27,6 +27,32 @@ contract ERC721BPresetBurnablePausable is
   }
 
   /**
+   * @dev Pauses all token transfers.
+   *
+   * See {ERC721Pausable} and {Pausable-_pause}.
+   *
+   * Requirements:
+   *
+   * - the caller must have the `PAUSER_ROLE`.
+   */
+  function pause() public virtual onlyOwner {
+    _pause();
+  }
+
+  /**
+   * @dev Unpauses all token transfers.
+   *
+   * See {ERC721Pausable} and {Pausable-_unpause}.
+   *
+   * Requirements:
+   *
+   * - the caller must have the `PAUSER_ROLE`.
+   */
+  function unpause() public virtual onlyOwner {
+    _unpause();
+  }
+
+  /**
    * @dev Describes linear override for `_beforeTokenTransfer` used in 
    * both `ERC721B` and `ERC721BPausable`
    */
