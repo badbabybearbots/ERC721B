@@ -21,7 +21,9 @@ logic. Everything that works in **ERC721** still works in **ERC721B**.
 
  - **ERC721BBurnable** - Ability for owners to burn tokens
  - **ERC721BPausable** - Ability for admins to pause the contract
- - **ERC721BURIStorable** - Ability to attach a URI to tokens
+ - **ERC721BURIBase** - Ability to set a base URI for tokens where token URIs dynamically determined
+ - **ERC721BURIStorage** - Ability to attach a fixed URI to tokens
+ - **ERC721BURIContract** - Allows the contract itself to have a URI
 
 We've measured the gas costs and prices for minting, comparing 
 OpenZeppelin's **ERC721** vs **ERC721A** vs **ERC721B**. In our 
