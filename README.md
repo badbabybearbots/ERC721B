@@ -8,7 +8,7 @@ dev community needs to adapt. When popular NFT projects begin to mint,
 gas prices spike up, resulting in the entire ecosystem paying millions 
 in gas fees to transact. The focus for the dev team has been to optimize 
 our contract and enable our community to spend as little as possible in 
-gas fees when minting.
+gas fees when minting. 
 
 > The controversy ERC721A has certainly peeked interest in the community 
 for achieving low mint costs for all, but had to sacrafice functionality 
