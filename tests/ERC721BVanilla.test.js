@@ -53,6 +53,11 @@ describe('ERC721B Vanilla Tests', function () {
     }
   })
 
+  it('Should have zero tokens', async function () {
+    const { contractOwner } = this.signers
+    expect(await contractOwner.withContract.lastTokenId()).to.equal(0)
+  })
+
   it('Should mint', async function () {
     const {
       contractOwner, 
@@ -79,6 +84,7 @@ describe('ERC721B Vanilla Tests', function () {
     expect(await contractOwner.withContract.ownerOf(10)).to.equal(tokenOwner3.address)
     expect(await contractOwner.withContract.ownerOf(11)).to.equal(tokenOwner3.address)
     expect(await contractOwner.withContract.ownerOf(12)).to.equal(tokenOwner3.address)
+    expect(await contractOwner.withContract.lastTokenId()).to.equal(12)
 
     await expect(
       contractOwner.withContract.ownerOf(13)
@@ -92,6 +98,7 @@ describe('ERC721B Vanilla Tests', function () {
     expect(await contractOwner.withContract.ownerOf(13)).to.equal(tokenOwner2.address)
     expect(await contractOwner.withContract.ownerOf(14)).to.equal(tokenOwner2.address)
     expect(await contractOwner.withContract.ownerOf(15)).to.equal(tokenOwner1.address)
+    expect(await contractOwner.withContract.lastTokenId()).to.equal(15)
     
     await expect(
       contractOwner.withContract.ownerOf(16)

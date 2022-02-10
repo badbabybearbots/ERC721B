@@ -67,6 +67,13 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   /**
+   * @dev Returns the last token id minted
+   */
+  function lastTokenId() public view virtual returns(uint256) {
+    return _lastTokenId;
+  }
+
+  /**
    * @dev See {IERC721-ownerOf}.
    */
   function ownerOf(uint256 tokenId) 
