@@ -12,6 +12,17 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
+error BalanceQueryZeroAddress();
+error NonExistentToken();
+error ApprovalToCurrentOwner();
+error ApprovalOwnerIsOperator();
+error NotOwnerOrApproved();
+error NotERC721Receiver();
+error TransferToZeroAddress();
+error InvalidAmount();
+error ERC721ReceiverNotReceived();
+error TransferFromNotOwner();
+
 /**
  * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] 
  * Non-Fungible Token Standard, including the Metadata extension and 
@@ -59,10 +70,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   function balanceOf(address owner) 
     public view virtual override returns(uint256) 
   {
-    require(
-      owner != address(0), 
-      "ERC721B: balance query for the zero address"
-    );
+    if (owner == address(0)) revert BalanceQueryZeroAddress();
     return _balances[owner];
   }
 
@@ -79,18 +87,27 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   function ownerOf(uint256 tokenId) 
     public view virtual override returns(address) 
   {
-    require(
-      tokenId > 0 && _exists(tokenId), 
-      "ERC721B: owner query for nonexistent token"
-    );
-
-    for (uint256 id = tokenId; id >= 0; id--) {
+    unchecked {
+      //this is the situation when _owners normalized
+      uint256 id = tokenId;
+      if (_owners[id] == address(this)) revert NonExistentToken();
       if (_owners[id] != address(0)) {
         return _owners[id];
       }
+      //this is the situation when _owners is not normalized
+      if (tokenId > 0 && tokenId <= _lastTokenId) {
+        //there will never be a case where token 1 is address(0)
+        while(true) {
+          id--;
+          if (_owners[id] == address(this)) revert NonExistentToken();
+          if (_owners[id] != address(0)) {
+            return _owners[id];
+          }
+        }
+      }
     }
 
-    revert("ERC721B: unable to determine the owner of token");
+    revert NonExistentToken();
   }
 
   /**
@@ -125,10 +142,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   function tokenURI(uint256 tokenId) 
     public view virtual override returns (string memory) 
   {
-    require(
-      _exists(tokenId), 
-      "ERC721B: URI query for nonexistent token"
-    );
+    if (!_exists(tokenId)) revert NonExistentToken();
 
     string memory baseURI = _baseURI();
     return bytes(baseURI).length > 0 ? string(
@@ -143,12 +157,11 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    */
   function approve(address to, uint256 tokenId) public virtual override {
     address owner = ERC721B.ownerOf(tokenId);
-    require(to != owner, "ERC721B: approval to current owner");
+    if (to == owner) revert ApprovalToCurrentOwner();
 
-    require(
-      _msgSender() == owner || isApprovedForAll(owner, _msgSender()),
-      "ERC721B: approve caller is not owner nor approved for all"
-    );
+    address sender = _msgSender();
+    if (sender != owner && !isApprovedForAll(owner, sender)) 
+      revert ApprovalToCurrentOwner();
 
     _approve(to, tokenId, owner);
   }
@@ -159,8 +172,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   function getApproved(uint256 tokenId) 
     public view virtual override returns(address) 
   {
-    require(_exists(tokenId), "ERC721B: approved query for nonexistent token");
-
+    if (!_exists(tokenId)) revert NonExistentToken();
     return _tokenApprovals[tokenId];
   }
 
@@ -201,14 +213,11 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    *
    * - `tokenId` must exist.
    */
-  function _isApprovedOrOwner(address spender, uint256 tokenId) 
-    internal view virtual returns(bool) 
-  {
-    require(
-      _exists(tokenId), 
-      "ERC721B: operator query for nonexistent token"
-    );
-    address owner = ERC721B.ownerOf(tokenId);
+  function _isApprovedOrOwner(
+      address spender, 
+      uint256 tokenId, 
+      address owner
+  ) internal view virtual returns(bool) {
     return spender == owner 
       || getApproved(tokenId) == spender 
       || isApprovedForAll(owner, spender);
@@ -224,7 +233,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address operator,
     bool approved
   ) internal virtual {
-    require(owner != operator, "ERC721B: approve to caller");
+    if (owner == operator) revert ApprovalOwnerIsOperator();
     _operatorApprovals[owner][operator] = approved;
     emit ApprovalForAll(owner, operator, approved);
   }
@@ -239,12 +248,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address to,
     uint256 tokenId
   ) public virtual override {
-    //solhint-disable-next-line max-line-length
-    require(
-      _isApprovedOrOwner(_msgSender(), tokenId), 
-      "ERC721B: transfer caller is not owner nor approved"
-    );
-
     _transfer(from, to, tokenId);
   }
 
@@ -268,10 +271,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     uint256 tokenId,
     bytes memory _data
   ) public virtual override {
-    require(
-      _isApprovedOrOwner(_msgSender(), tokenId), 
-      "ERC721B: transfer caller is not owner nor approved"
-    );
     _safeTransfer(from, to, tokenId, _data);
   }
 
@@ -288,22 +287,29 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   function _burn(uint256 tokenId) internal virtual {
     address owner = ERC721B.ownerOf(tokenId);
 
+    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
+      revert NotOwnerOrApproved();
+
     _beforeTokenTransfers(owner, address(0), tokenId, 1);
 
     // Clear approvals
     _approve(address(0), tokenId, owner);
 
-    uint256 nextTokenId = tokenId + 1;
-    if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
-      _owners[nextTokenId] = owner;
-    }
+    unchecked {
+      //this is the situation when _owners are normalized
+      _balances[owner] -= 1;
+      //we cannot delete or send this to address(0) because
+      //it is being cased for during minting. So instead we
+      //send it to this contract, which is fine because the
+      //contract itself can't transfer to anyone
+      _owners[tokenId] = address(this);
 
-    _balances[owner] -= 1;
-    //we cannot delete or send this to address(0) because
-    //it is being cased for during minting. So instead we
-    //send it to this contract, which is fine because the
-    //contract itself can't transfer to anyone
-    _owners[tokenId] = address(this);
+      //this is the situation when _owners are not normalized
+      uint256 nextTokenId = tokenId + 1;
+      if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
+        _owners[nextTokenId] = owner;
+      }
+    }
 
     _afterTokenTransfers(owner, address(0), tokenId, 1);
 
@@ -321,22 +327,18 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     uint256 tokenId,
     bytes memory _data
   ) private returns (bool) {
-    if (to.isContract()) {
-      try IERC721Receiver(to).onERC721Received(
-        _msgSender(), from, tokenId, _data
-      ) returns (bytes4 retval) {
-        return retval == IERC721Receiver.onERC721Received.selector;
-      } catch (bytes memory reason) {
-        if (reason.length == 0) {
-          revert("ERC721B: transfer to non ERC721Receiver implementer");
-        } else {
-          assembly {
-            revert(add(32, reason), mload(reason))
-          }
+    try IERC721Receiver(to).onERC721Received(
+      _msgSender(), from, tokenId, _data
+    ) returns (bytes4 retval) {
+      return retval == IERC721Receiver.onERC721Received.selector;
+    } catch (bytes memory reason) {
+      if (reason.length == 0) {
+        revert NotERC721Receiver();
+      } else {
+        assembly {
+          revert(add(32, reason), mload(reason))
         }
       }
-    } else {
-      return true;
     }
   }
 
@@ -350,7 +352,9 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    * and stop existing when they are burned (`_burn`).
    */
   function _exists(uint256 tokenId) internal view virtual returns (bool) {
-    return tokenId <= _lastTokenId && _owners[tokenId] != address(this);
+    return tokenId > 0 
+      && tokenId <= _lastTokenId 
+      && _owners[tokenId] != address(this);
   }
 
   /**
@@ -368,36 +372,45 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    */
   function _mint(
     address to,
-    uint256 quantity,
+    uint256 amount,
     bytes memory _data,
-    bool safe
+    bool safeCheck
   ) internal virtual {
-    require(to != address(0), "ERC721B: mint to the zero address");
-    require(to != address(this), "ERC721B: transfer to self contract");
-    require(quantity != 0, "ERC721B: quantity must be greater than 0");
+    if (to == address(0) || to == address(this)) 
+      revert TransferToZeroAddress();
+    if(amount == 0) revert InvalidAmount();
 
     uint256 startTokenId = _lastTokenId + 1;
-    _beforeTokenTransfers(address(0), to, startTokenId, quantity);
+    _beforeTokenTransfers(address(0), to, startTokenId, amount);
 
     unchecked {
-      _lastTokenId += quantity;
-      _balances[to] += quantity;
+      _lastTokenId += amount;
+      _balances[to] += amount;
       _owners[startTokenId] = to;
 
       uint256 updatedIndex = startTokenId;
-      for (uint256 i; i < quantity; i++) {
+      //if do safe check
+      if (safeCheck) {
+        //check if contract one time (instead of loop)
+        if (to.isContract()) {
+          //loop emit transfer and received check
+          for (uint256 i; i < amount; i++) {
+            emit Transfer(address(0), to, updatedIndex);
+            if (!_checkOnERC721Received(address(0), to, updatedIndex, _data))
+              revert ERC721ReceiverNotReceived();
+            updatedIndex++;
+          }
+          return;
+        } 
+      }
+
+      for (uint256 i; i < amount; i++) {
         emit Transfer(address(0), to, updatedIndex);
-        if (safe) {
-          require(
-            _checkOnERC721Received(address(0), to, updatedIndex, _data),
-            "ERC721B: transfer to non ERC721Receiver implementer"
-          );
-        }
         updatedIndex++;
       }
     }
 
-    _afterTokenTransfers(address(0), to, startTokenId, quantity);
+    _afterTokenTransfers(address(0), to, startTokenId, amount);
   }
 
   /**
@@ -412,8 +425,8 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    *
    * Emits a {Transfer} event.
    */
-  function _safeMint(address to, uint256 quantity) internal virtual {
-    _safeMint(to, quantity, "");
+  function _safeMint(address to, uint256 amount) internal virtual {
+    _safeMint(to, amount, "");
   }
 
   /**
@@ -423,10 +436,10 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    */
   function _safeMint(
     address to,
-    uint256 quantity,
+    uint256 amount,
     bytes memory _data
   ) internal virtual {
-    _mint(to, quantity, _data, true);
+    _mint(to, amount, _data, true);
   }
 
   /**
@@ -460,10 +473,11 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     bytes memory _data
   ) internal virtual {
     _transfer(from, to, tokenId);
-    require(
-      _checkOnERC721Received(from, to, tokenId, _data), 
-      "ERC721B: transfer to non ERC721Receiver implementer"
-    );
+    if (to.isContract() 
+      && !_checkOnERC721Received(from, to, tokenId, _data)
+    ) {
+        revert ERC721ReceiverNotReceived();
+    }
   }
 
   /**
@@ -482,12 +496,14 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address to,
     uint256 tokenId
   ) internal virtual {
-    require(to != address(0), "ERC721B: transfer to the zero address");
-    require(to != address(this), "ERC721B: transfer to self contract");
-    require(
-      ERC721B.ownerOf(tokenId) == from, 
-      "ERC721B: transfer of token that is not own"
-    );
+    if (to == address(0) || to == address(this)) 
+      revert TransferToZeroAddress();
+    //get owner
+    address owner = ERC721B.ownerOf(tokenId);
+    //owner should be the `from`
+    if (from != owner) revert TransferFromNotOwner();
+    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
+      revert NotOwnerOrApproved();
 
     _beforeTokenTransfers(from, to, tokenId, 1);
 
@@ -495,10 +511,11 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     _approve(address(0), tokenId, from);
 
     unchecked {
-      _balances[from] -= 1;
+      //this is the situation when _owners are normalized
       _balances[to] += 1;
+      _balances[from] -= 1;
       _owners[tokenId] = to;
-
+      //this is the situation when _owners are not normalized
       uint256 nextTokenId = tokenId + 1;
       if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
         _owners[nextTokenId] = from;
@@ -506,7 +523,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     }
 
     _afterTokenTransfers(from, to, tokenId, 1);
-
     emit Transfer(from, to, tokenId);
   }
 
@@ -526,7 +542,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    * are about to be transferred. This includes minting.
    *
    * startTokenId - the first token id to be transferred
-   * quantity - the amount to be transferred
+   * amount - the amount to be transferred
    *
    * Calling conditions:
    *
@@ -538,7 +554,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address from,
     address to,
     uint256 startTokenId,
-    uint256 quantity
+    uint256 amount
   ) internal virtual {}
 
   /**
@@ -546,7 +562,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    * have been transferred. This includes minting.
    *
    * startTokenId - the first token id to be transferred
-   * quantity - the amount to be transferred
+   * amount - the amount to be transferred
    *
    * Calling conditions:
    *
@@ -557,6 +573,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address from,
     address to,
     uint256 startTokenId,
-    uint256 quantity
+    uint256 amount
   ) internal virtual {}
 }

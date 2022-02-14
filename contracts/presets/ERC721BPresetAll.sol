@@ -161,14 +161,4 @@ contract ERC721BPresetAll is
   ) internal virtual override(ERC721B, ERC721BPausable) {
     super._beforeTokenTransfers(from, to, startTokenId, quantity);
   }
-  
-  /**
-   * @dev Describes linear override for `_burn` used in both `ERC721B` 
-   * and `ERC721BURIStorage`
-   */
-  function _burn(uint256 tokenId) 
-    internal virtual override(ERC721B, ERC721BURIStorage) 
-  {
-    super._burn(tokenId);
-  }
 }

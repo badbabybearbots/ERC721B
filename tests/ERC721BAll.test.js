@@ -72,7 +72,7 @@ describe('ERC721B All Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(3)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
 
     await tokenOwner1.withContract.burn(5)
@@ -83,13 +83,13 @@ describe('ERC721B All Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(5)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
 
     await expect(
       contractOwner.withContract.ownerOf(6)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
 
     await tokenOwner1.withContract.burn(1)
@@ -99,7 +99,7 @@ describe('ERC721B All Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(1)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
   })
 
@@ -110,7 +110,7 @@ describe('ERC721B All Tests', function () {
     await expect(
       contractOwner.withContract.mint(tokenOwner1.address, 3)
     ).to.be.revertedWith(
-      'ERC721BPausable: token transfer while paused'
+      'TransferWhilePaused()'
     )
 
     await expect(
@@ -120,13 +120,13 @@ describe('ERC721B All Tests', function () {
         2
       )
     ).to.be.revertedWith(
-      'ERC721BPausable: token transfer while paused'
+      'TransferWhilePaused()'
     )
 
     await expect(
       tokenOwner1.withContract.burn(2)
     ).to.be.revertedWith(
-      'ERC721BPausable: token transfer while paused'
+      'TransferWhilePaused()'
     )
 
     await contractOwner.withContract.unpause()

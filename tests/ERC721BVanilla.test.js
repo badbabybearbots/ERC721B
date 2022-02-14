@@ -89,7 +89,7 @@ describe('ERC721B Vanilla Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(13)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
 
     await contractOwner.withContract.mint(tokenOwner2.address, 2)
@@ -103,7 +103,7 @@ describe('ERC721B Vanilla Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(16)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
 
     expect(
@@ -161,7 +161,7 @@ describe('ERC721B Vanilla Tests', function () {
     await expect(
       contractOwner.withContract.ownerOf(16)
     ).to.be.revertedWith(
-      'ERC721B: owner query for nonexistent token'
+      'NonExistentToken()'
     )
   })
 

@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import "../ERC721B.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+error TransferWhilePaused();
+
 /**
  * @dev ERC721B token with pausable token transfers, minting and burning.
  *
@@ -27,6 +29,6 @@ abstract contract ERC721BPausable is Pausable, ERC721B {
     uint256 quantity
   ) internal virtual override {
     super._beforeTokenTransfers(from, to, startTokenId, quantity);
-    require(!paused(), "ERC721BPausable: token transfer while paused");
+    if (paused()) revert TransferWhilePaused();
   }
 }

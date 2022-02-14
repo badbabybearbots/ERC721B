@@ -17,7 +17,7 @@ abstract contract ERC721BURIStorage is ERC721B {
    * @dev See {IERC721Metadata-tokenURI}.
    */
   function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-    require(_exists(tokenId), "ERC721URIStorage: URI query for nonexistent token");
+    if(!_exists(tokenId)) revert NonExistentToken();
 
     string memory _tokenURI = _tokenURIs[tokenId];
     string memory base = _baseURI();
@@ -42,25 +42,7 @@ abstract contract ERC721BURIStorage is ERC721B {
    * - `tokenId` must exist.
    */
   function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
-    require(_exists(tokenId), "ERC721BURIStorage: URI set of nonexistent token");
+    if(!_exists(tokenId)) revert NonExistentToken();
     _tokenURIs[tokenId] = _tokenURI;
-  }
-
-  /**
-   * @dev Destroys `tokenId`.
-   * The approval is cleared when the token is burned.
-   *
-   * Requirements:
-   *
-   * - `tokenId` must exist.
-   *
-   * Emits a {Transfer} event.
-   */
-  function _burn(uint256 tokenId) internal virtual override {
-    super._burn(tokenId);
-
-    if (bytes(_tokenURIs[tokenId]).length != 0) {
-      delete _tokenURIs[tokenId];
-    }
   }
 }
