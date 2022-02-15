@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 
 import "../extensions/ERC721BURIContract.sol";
 
@@ -14,7 +13,6 @@ import "../extensions/ERC721BURIBase.sol";
 import "../extensions/ERC721BURIStorage.sol";
 
 contract ERC721BPresetAll is
-  Context,
   Ownable,
   AccessControlEnumerable,
   ERC721BBurnable, 
