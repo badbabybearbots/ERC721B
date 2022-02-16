@@ -27,6 +27,19 @@ contract ERC721BPresetBurnablePausable is
   }
 
   /**
+   * @dev See {IERC721-ownerOf}.
+   */
+  function ownerOf(uint256 tokenId) 
+    public 
+    view 
+    virtual 
+    override(ERC721B, ERC721BBurnable) 
+    returns(address) 
+  {
+    return super.ownerOf(tokenId);
+  }
+
+  /**
    * @dev Pauses all token transfers.
    *
    * See {ERC721Pausable} and {Pausable-_pause}.
@@ -63,5 +76,24 @@ contract ERC721BPresetBurnablePausable is
     uint256 quantity
   ) internal virtual override(ERC721B, ERC721BPausable) {
     super._beforeTokenTransfers(from, to, startTokenId, quantity);
+  }
+
+  /**
+   * @dev Returns whether `tokenId` exists.
+   *
+   * Tokens can be managed by their owner or approved accounts via 
+   * {approve} or {setApprovalForAll}.
+   *
+   * Tokens start existing when they are minted (`_mint`),
+   * and stop existing when they are burned (`_burn`).
+   */
+  function _exists(uint256 tokenId) 
+    internal 
+    view 
+    virtual 
+    override(ERC721B, ERC721BBurnable) 
+    returns(bool) 
+  {
+    return super._exists(tokenId);
   }
 }

@@ -65,6 +65,7 @@ describe('ERC721B Provenance Tests', function () {
       maxPurchase: 5,
       price: ethers.utils.parseEther(String(this.salePrice))
     }
+  
     const [
       contractOwner, 
       tokenOwner1, 
@@ -83,8 +84,12 @@ describe('ERC721B Provenance Tests', function () {
       this.uri,
       this.cid,
       this.maxSupply,
-      this.whitelist,
-      this.sale
+      this.whitelist.price,
+      this.whitelist.startDate,
+      this.whitelist.maxPurchase,
+      this.sale.price,
+      this.sale.startDate,
+      this.sale.maxPurchase
     )
     
     this.signers = { 

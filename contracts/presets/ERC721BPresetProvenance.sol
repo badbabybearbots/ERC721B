@@ -4,14 +4,13 @@ pragma solidity ^0.8.0;
 
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../extensions/ERC721BURIBase.sol";
-import "../extensions/ERC721BBurnable.sol";
-import "../extensions/ERC721BPausable.sol";
 
 error WhitelistNotStarted();
 error WhitelistEnded();
@@ -21,8 +20,7 @@ error InvalidRecipient();
 
 contract ERC721BPresetProvenance is
   Ownable,
-  ERC721BBurnable,
-  ERC721BPausable,
+  ReentrancyGuard,
   ERC721BURIBase
 {
   using Strings for uint256;
@@ -35,7 +33,7 @@ contract ERC721BPresetProvenance is
 
   // ============ Structs ============
 
-  struct Stage {
+  struct SaleStage {
     //in unix timestamp
     uint64 startDate;
     //should be less than 256
@@ -44,9 +42,9 @@ contract ERC721BPresetProvenance is
     uint256 price;
   }
 
-  struct Consumption {
+  struct SaleConsumption {
     mapping(address => uint8) consumed;
-    Stage stage;
+    SaleStage stage;
   }
 
   // ============ Storage ============
@@ -61,8 +59,8 @@ contract ERC721BPresetProvenance is
   //at the moment
   string public provenance;
 
-  Consumption private _whitelist;
-  Consumption private _sale;
+  SaleConsumption private _whitelist;
+  SaleConsumption private _sale;
 
   // ============ Deploy ============
 
@@ -76,8 +74,12 @@ contract ERC721BPresetProvenance is
     string memory uri_,
     string memory cid_,
     uint16 maxSupply_,
-    Stage memory whitelist_,
-    Stage memory sale_
+    uint256 whitelistPrice_,
+    uint64 whitelistStartDate_,
+    uint8 whitelistMaxPurchase_,
+    uint256 salePrice_,
+    uint64 saleStartDate_,
+    uint8 saleMaxPurchase_
   ) ERC721B(name_, symbol_) {
     //set max supply
     MAX_SUPPLY = maxSupply_;
@@ -86,13 +88,13 @@ contract ERC721BPresetProvenance is
     //set provenance data
     provenance = cid_;
     //populate whitelist
-    _whitelist.stage.price = whitelist_.price;
-    _whitelist.stage.startDate = whitelist_.startDate;
-    _whitelist.stage.maxPurchase = whitelist_.maxPurchase;
+    _whitelist.stage.price = whitelistPrice_;
+    _whitelist.stage.startDate = whitelistStartDate_;
+    _whitelist.stage.maxPurchase = whitelistMaxPurchase_;
     //populate sale
-    _sale.stage.price = sale_.price;
-    _sale.stage.startDate = sale_.startDate;
-    _sale.stage.maxPurchase = sale_.maxPurchase;
+    _sale.stage.price = salePrice_;
+    _sale.stage.startDate = saleStartDate_;
+    _sale.stage.maxPurchase = saleMaxPurchase_;
   }
 
   // ============ Read Methods ============
@@ -144,6 +146,13 @@ contract ERC721BPresetProvenance is
       abi.encodePacked(baseTokenURI(), provenance, "/", index.toString(), ".json")
     );
   }
+  
+  /**
+   * @dev Shows the overall amount of tokens generated in the contract
+   */
+  function totalSupply() public virtual view returns (uint256) {
+    return lastTokenId();
+  }
 
   // ============ Write Methods ============
 
@@ -180,7 +189,7 @@ contract ERC721BPresetProvenance is
       //the value sent should be the price times quantity
       || quantity.mul(_whitelist.stage.price) > msg.value
       //the quantity being minted should not exceed the max supply
-      || totalSupply().add(quantity) > MAX_SUPPLY
+      || (lastTokenId() + quantity) > MAX_SUPPLY
     ) revert InvalidAmount();
 
     _whitelist.consumed[recipient] += uint8(quantity);
@@ -207,18 +216,11 @@ contract ERC721BPresetProvenance is
       //the value sent should be the price times quantity
       || quantity.mul(_sale.stage.price) > msg.value
       //the quantity being minted should not exceed the max supply
-      || totalSupply().add(quantity) > MAX_SUPPLY
+      || (lastTokenId() + quantity) > MAX_SUPPLY
     ) revert InvalidAmount();
 
     _sale.consumed[recipient] += uint8(quantity);
     _safeMint(recipient, quantity);
-  }
-
-  /**
-   * @dev Pauses all token transfers.
-   */
-  function pause() public virtual onlyOwner {
-    _pause();
   }
 
   /**
@@ -233,17 +235,10 @@ contract ERC721BPresetProvenance is
   }
 
   /**
-   * @dev Unpauses all token transfers.
-   */
-  function unpause() public virtual onlyOwner {
-    _unpause();
-  }
-
-  /**
    * @dev Allows the proceeds to be withdrawn. This also releases the  
    * collection at the same time to discourage rug pulls 
    */
-  function withdraw() external virtual onlyOwner {
+  function withdraw() external virtual onlyOwner nonReentrant {
     //set the offset
     if (indexOffset == 0) {
       indexOffset = uint16(block.number - 1) % MAX_SUPPLY;
@@ -254,34 +249,5 @@ contract ERC721BPresetProvenance is
 
     uint balance = address(this).balance;
     payable(_msgSender()).transfer(balance);
-  }
-
-  // ============ Internal Methods ============
-  
-  /**
-   * @dev Describes linear override for `_baseURI` used in 
-   * both `ERC721B` and `ERC721BURIBase`
-   */
-  function _baseURI() 
-    internal 
-    view 
-    virtual 
-    override(ERC721B, ERC721BURIBase) 
-    returns(string memory)
-  {
-    return super._baseURI();
-  }
-
-  /**
-   * @dev Describes linear override for `_beforeTokenTransfer` used in 
-   * both `ERC721B` and `ERC721BPausable`
-   */
-  function _beforeTokenTransfers(
-    address from,
-    address to,
-    uint256 startTokenId,
-    uint256 quantity
-  ) internal virtual override(ERC721B, ERC721BPausable) {
-    super._beforeTokenTransfers(from, to, startTokenId, quantity);
   }
 }

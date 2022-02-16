@@ -42,9 +42,9 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   uint256 private _lastTokenId;
 
   // Mapping from token ID to owner address
-  mapping(uint256 => address) private _owners;
+  mapping(uint256 => address) internal _owners;
   // Mapping owner address to token count
-  mapping(address => uint256) private _balances;
+  mapping(address => uint256) internal _balances;
 
   // Mapping from token ID to approved address
   mapping(uint256 => address) private _tokenApprovals;
@@ -90,17 +90,17 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     unchecked {
       //this is the situation when _owners normalized
       uint256 id = tokenId;
-      if (_owners[id] == address(this)) revert NonExistentToken();
       if (_owners[id] != address(0)) {
         return _owners[id];
       }
       //this is the situation when _owners is not normalized
-      if (tokenId > 0 && tokenId <= _lastTokenId) {
+      if (id > 0 && id <= _lastTokenId) {
         //there will never be a case where token 1 is address(0)
         while(true) {
           id--;
-          if (_owners[id] == address(this)) revert NonExistentToken();
-          if (_owners[id] != address(0)) {
+          if (id == 0) {
+            break;
+          } else if (_owners[id] != address(0)) {
             return _owners[id];
           }
         }
@@ -275,48 +275,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   /**
-   * @dev Destroys `tokenId`.
-   * The approval is cleared when the token is burned.
-   *
-   * Requirements:
-   *
-   * - `tokenId` must exist.
-   *
-   * Emits a {Transfer} event.
-   */
-  function _burn(uint256 tokenId) internal virtual {
-    address owner = ERC721B.ownerOf(tokenId);
-
-    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
-      revert NotOwnerOrApproved();
-
-    _beforeTokenTransfers(owner, address(0), tokenId, 1);
-
-    // Clear approvals
-    _approve(address(0), tokenId, owner);
-
-    unchecked {
-      //this is the situation when _owners are normalized
-      _balances[owner] -= 1;
-      //we cannot delete or send this to address(0) because
-      //it is being cased for during minting. So instead we
-      //send it to this contract, which is fine because the
-      //contract itself can't transfer to anyone
-      _owners[tokenId] = address(this);
-
-      //this is the situation when _owners are not normalized
-      uint256 nextTokenId = tokenId + 1;
-      if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
-        _owners[nextTokenId] = owner;
-      }
-    }
-
-    _afterTokenTransfers(owner, address(0), tokenId, 1);
-
-    emit Transfer(owner, address(0), tokenId);
-  }
-
-  /**
    * @dev Internal function to invoke {IERC721Receiver-onERC721Received} 
    * on a target address. The call is not executed if the target address 
    * is not a contract.
@@ -352,9 +310,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    * and stop existing when they are burned (`_burn`).
    */
   function _exists(uint256 tokenId) internal view virtual returns (bool) {
-    return tokenId > 0 
-      && tokenId <= _lastTokenId 
-      && _owners[tokenId] != address(this);
+    return tokenId > 0 && tokenId <= _lastTokenId;
   }
 
   /**
@@ -376,9 +332,8 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     bytes memory _data,
     bool safeCheck
   ) internal virtual {
-    if (to == address(0) || to == address(this)) 
-      revert TransferToZeroAddress();
     if(amount == 0) revert InvalidAmount();
+    if (to == address(0)) revert TransferToZeroAddress();
 
     uint256 startTokenId = _lastTokenId + 1;
     _beforeTokenTransfers(address(0), to, startTokenId, amount);
@@ -496,8 +451,7 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     address to,
     uint256 tokenId
   ) internal virtual {
-    if (to == address(0) || to == address(this)) 
-      revert TransferToZeroAddress();
+    if (to == address(0)) revert TransferToZeroAddress();
     //get owner
     address owner = ERC721B.ownerOf(tokenId);
     //owner should be the `from`
