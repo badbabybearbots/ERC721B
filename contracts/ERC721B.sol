@@ -189,20 +189,6 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
   // ============ Mint Methods ============
 
   /**
-   * @dev Mints `tokenId` and transfers it to `to`. No checks, no events.
-   * Set as internal so allow children to wrap functionality around it.
-   */
-  function _doMint(
-    address to,
-    uint256 amount,
-    uint256 startTokenId
-  ) internal virtual {
-    _lastTokenId += amount;
-    _balances[to] += amount;
-    _owners[startTokenId] = to;
-  }
-
-  /**
    * @dev Mints `tokenId` and transfers it to `to`.
    *
    * WARNING: Usage of this method is discouraged, use {_safeMint} 
@@ -223,8 +209,15 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
   ) private {
     if(amount == 0 || to == address(0)) revert InvalidCall();
     uint256 startTokenId = _lastTokenId + 1;
+    
+    _beforeTokenTransfers(address(0), to, startTokenId, amount);
+    
     unchecked {
-      _doMint(to, amount, startTokenId);
+      _lastTokenId += amount;
+      _balances[to] += amount;
+      _owners[startTokenId] = to;
+
+      _afterTokenTransfers(address(0), to, startTokenId, amount);
 
       uint256 updatedIndex = startTokenId;
       //if do safe check and,
@@ -340,29 +333,6 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
   }
 
   /**
-   * @dev Transfers `tokenId` from `from` to `to`. No checks, no events.
-   * Set as internal so allow children to wrap functionality around it.
-   */
-  function _doTransfer(address from, address to, uint256 tokenId) 
-    internal virtual 
-  {
-    // Clear approvals from the previous owner
-    _approve(address(0), tokenId, from);
-
-    unchecked {
-      //this is the situation when _owners are normalized
-      _balances[to] += 1;
-      _balances[from] -= 1;
-      _owners[tokenId] = to;
-      //this is the situation when _owners are not normalized
-      uint256 nextTokenId = tokenId + 1;
-      if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
-        _owners[nextTokenId] = from;
-      }
-    }
-  }
-
-  /**
    * @dev Returns whether `tokenId` exists.
    *
    * Tokens can be managed by their owner or approved accounts via 
@@ -432,7 +402,65 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
       || !_isApprovedOrOwner(_msgSender(), tokenId, owner)
     ) revert InvalidCall();
 
-    _doTransfer(from, to, tokenId);
+    _beforeTokenTransfers(from, to, tokenId, 1);
+    
+    // Clear approvals from the previous owner
+    _approve(address(0), tokenId, from);
+
+    unchecked {
+      //this is the situation when _owners are normalized
+      _balances[to] += 1;
+      _balances[from] -= 1;
+      _owners[tokenId] = to;
+      //this is the situation when _owners are not normalized
+      uint256 nextTokenId = tokenId + 1;
+      if (nextTokenId <= _lastTokenId && _owners[nextTokenId] == address(0)) {
+        _owners[nextTokenId] = from;
+      }
+    }
+
+    _afterTokenTransfers(from, to, tokenId, 1);
     emit Transfer(from, to, tokenId);
   }
+
+  // ============ TODO Methods ============
+
+  /**
+   * @dev Hook that is called before a set of serially-ordered token ids 
+   * are about to be transferred. This includes minting.
+   *
+   * startTokenId - the first token id to be transferred
+   * amount - the amount to be transferred
+   *
+   * Calling conditions:
+   *
+   * - When `from` and `to` are both non-zero, ``from``'s `tokenId` 
+   *   will be transferred to `to`.
+   * - When `from` is zero, `tokenId` will be minted for `to`.
+   */
+  function _beforeTokenTransfers(
+    address from,
+    address to,
+    uint256 startTokenId,
+    uint256 amount
+  ) internal virtual {}
+
+  /**
+   * @dev Hook that is called after a set of serially-ordered token ids 
+   * have been transferred. This includes minting.
+   *
+   * startTokenId - the first token id to be transferred
+   * amount - the amount to be transferred
+   *
+   * Calling conditions:
+   *
+   * - when `from` and `to` are both non-zero.
+   * - `from` and `to` are never both zero.
+   */
+  function _afterTokenTransfers(
+    address from,
+    address to,
+    uint256 startTokenId,
+    uint256 amount
+  ) internal virtual {}
 }

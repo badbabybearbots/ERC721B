@@ -50,19 +50,9 @@ abstract contract ERC721BBurnable is Context, ERC721B {
     address owner = ERC721B.ownerOf(tokenId);
     if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
       revert InvalidCall();
+
+    _beforeTokenTransfers(owner, address(0), tokenId, 1);
     
-    _doBurn(tokenId, owner);
-
-    emit Transfer(owner, address(0), tokenId);
-  }
-
-  // ============ Internal Methods ============
-
-  /**
-   * @dev Burns `tokenId`. No checks, no events.
-   * Set as internal so allow children to wrap functionality around it.
-   */
-  function _doBurn(uint256 tokenId, address owner) internal virtual {
     // Clear approvals
     _approve(address(0), tokenId, owner);
 
@@ -79,7 +69,13 @@ abstract contract ERC721BBurnable is Context, ERC721B {
         _owners[nextTokenId] = owner;
       }
     }
+
+    _afterTokenTransfers(owner, address(0), tokenId, 1);
+
+    emit Transfer(owner, address(0), tokenId);
   }
+
+  // ============ Internal Methods ============
 
   /**
    * @dev Returns whether `tokenId` exists.

@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import "../extensions/ERC721BBurnable.sol";
 import "../extensions/ERC721BPausable.sol";
 import "../extensions/ERC721BStaticTokenURI.sol";
+import "../extensions/ERC721BContractURIStorage.sol";
 
 import "./ERC721BPresetStandard.sol";
 
@@ -13,13 +14,21 @@ contract ERC721BPresetAll is
   ERC721BPresetStandard,
   ERC721BBurnable,
   ERC721BPausable,
-  ERC721BStaticTokenURI
+  ERC721BStaticTokenURI,
+  ERC721BContractURIStorage
 { 
+  using Strings for uint256;
+
   /**
-   * @dev Sets the name, symbol
+   * @dev Sets the name, symbol, contract URI
    */
-  constructor(string memory name, string memory symbol) 
-    ERC721BPresetStandard(name, symbol) {}
+  constructor(
+    string memory name, 
+    string memory symbol, 
+    string memory uri
+  ) ERC721BPresetStandard(name, symbol) {
+    _setContractURI(uri);
+  }
 
   /**
    * @dev Pauses all token transfers.
@@ -35,13 +44,31 @@ contract ERC721BPresetAll is
   }
 
   /**
+   * @dev Allows curators to set the base token uri
+   */
+  function setBaseTokenURI(string memory uri) 
+    external virtual onlyOwner
+  {
+    _setBaseURI(uri);
+  }
+
+  /**
+   * @dev Allows curators to set a token uri
+   */
+  function setTokenURI(uint256 tokenId, string memory uri) 
+    external virtual onlyOwner
+  {
+    _setTokenURI(tokenId, uri);
+  }
+
+  /**
    * @dev See {IERC721Metadata-tokenURI}.
    */
   function tokenURI(uint256 tokenId) 
     public 
     view 
     virtual 
-    override(ERC721BBaseTokenURI, ERC721BStaticTokenURI, IERC721Metadata) 
+    override(ERC721BStaticTokenURI, IERC721Metadata)
     returns(string memory) 
   {
     if(!_exists(tokenId)) revert NonExistentToken();
@@ -59,7 +86,9 @@ contract ERC721BPresetAll is
       return string(abi.encodePacked(base, _tokenURI));
     }
 
-    return super.tokenURI(tokenId);
+    return bytes(base).length > 0 ? string(
+      abi.encodePacked(base, tokenId.toString())
+    ) : "";
   }
 
   /**
@@ -106,25 +135,16 @@ contract ERC721BPresetAll is
   }
 
   /**
-   * @dev Describes linear override for `_doMint` used in 
-   * both `ERC721B` and `ERC721BPausable` 
-   */
-  function _doMint(
-    address to,
-    uint256 amount,
-    uint256 startTokenId
-  ) internal virtual override(ERC721B, ERC721BPausable)  {
-    super._doMint(to, amount, startTokenId);
-  }
-
-  /**
-   * @dev Describes linear override for `_doTransfer` used in 
+   * @dev Describes linear override for `_beforeTokenTransfers` used in 
    * both `ERC721B` and `ERC721BPausable`
    */
-  function _doTransfer(address from, address to, uint256 tokenId) 
-    internal virtual override(ERC721B, ERC721BPausable)
-  {
-    super._doTransfer(from, to, tokenId);
+  function _beforeTokenTransfers(
+    address from,
+    address to,
+    uint256 startTokenId,
+    uint256 amount
+  ) internal virtual override(ERC721B, ERC721BPausable) {
+    super._beforeTokenTransfers(from, to, startTokenId, amount);
   }
 
   /**

@@ -30,7 +30,7 @@ async function getSigners(name, ...params) {
   return signers
 }
 
-describe('ERC721B Vanilla Tests', function () {
+describe('ERC721B Standard Tests', function () {
   before(async function() {
     const [
       contractOwner, 
@@ -40,7 +40,7 @@ describe('ERC721B Vanilla Tests', function () {
       tokenOwner4, 
       tokenOwner5, 
       tokenOwner6
-    ] = await getSigners('ERC721BVanilla', 'test', 'TEST')
+    ] = await getSigners('ERC721BPresetStandard', 'test', 'TEST')
     
     this.signers = { 
       contractOwner, 
@@ -55,7 +55,7 @@ describe('ERC721B Vanilla Tests', function () {
 
   it('Should have zero tokens', async function () {
     const { contractOwner } = this.signers
-    expect(await contractOwner.withContract.lastTokenId()).to.equal(0)
+    expect(await contractOwner.withContract.totalSupply()).to.equal(0)
   })
 
   it('Should mint', async function () {
@@ -84,7 +84,7 @@ describe('ERC721B Vanilla Tests', function () {
     expect(await contractOwner.withContract.ownerOf(10)).to.equal(tokenOwner3.address)
     expect(await contractOwner.withContract.ownerOf(11)).to.equal(tokenOwner3.address)
     expect(await contractOwner.withContract.ownerOf(12)).to.equal(tokenOwner3.address)
-    expect(await contractOwner.withContract.lastTokenId()).to.equal(12)
+    expect(await contractOwner.withContract.totalSupply()).to.equal(12)
 
     await expect(
       contractOwner.withContract.ownerOf(13)
@@ -98,7 +98,7 @@ describe('ERC721B Vanilla Tests', function () {
     expect(await contractOwner.withContract.ownerOf(13)).to.equal(tokenOwner2.address)
     expect(await contractOwner.withContract.ownerOf(14)).to.equal(tokenOwner2.address)
     expect(await contractOwner.withContract.ownerOf(15)).to.equal(tokenOwner1.address)
-    expect(await contractOwner.withContract.lastTokenId()).to.equal(15)
+    expect(await contractOwner.withContract.totalSupply()).to.equal(15)
     
     await expect(
       contractOwner.withContract.ownerOf(16)

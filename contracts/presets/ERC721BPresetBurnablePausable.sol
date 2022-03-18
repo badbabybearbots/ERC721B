@@ -76,25 +76,16 @@ contract ERC721BPresetBurnablePausable is
   }
 
   /**
-   * @dev Describes linear override for `_doMint` used in 
-   * both `ERC721B` and `ERC721BPausable` 
-   */
-  function _doMint(
-    address to,
-    uint256 amount,
-    uint256 startTokenId
-  ) internal virtual override(ERC721B, ERC721BPausable)  {
-    super._doMint(to, amount, startTokenId);
-  }
-
-  /**
-   * @dev Describes linear override for `_doTransfer` used in 
+   * @dev Describes linear override for `_beforeTokenTransfers` used in 
    * both `ERC721B` and `ERC721BPausable`
    */
-  function _doTransfer(address from, address to, uint256 tokenId) 
-    internal virtual override(ERC721B, ERC721BPausable)
-  {
-    super._doTransfer(from, to, tokenId);
+  function _beforeTokenTransfers(
+    address from,
+    address to,
+    uint256 startTokenId,
+    uint256 amount
+  ) internal virtual override(ERC721B, ERC721BPausable) {
+    super._beforeTokenTransfers(from, to, startTokenId, amount);
   }
 
   /**

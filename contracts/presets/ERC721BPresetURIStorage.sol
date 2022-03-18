@@ -11,17 +11,35 @@ contract ERC721BPresetURIStorage is
   ERC721BContractURIStorage,
   ERC721BStaticTokenURI
 { 
-  /**
-   * @dev Sets the name, symbol
-   */
-  constructor(string memory name, string memory symbol) 
-    ERC721BPresetStandard(name, symbol) {}
+  using Strings for uint256;
 
   /**
-   * @dev Sets contract uri
+   * @dev Sets the name, symbol, contract URI
    */
-  function setContractURI(string memory uri) public virtual onlyOwner {
+  constructor(
+    string memory name, 
+    string memory symbol, 
+    string memory uri
+  ) ERC721BPresetStandard(name, symbol) {
     _setContractURI(uri);
+  }
+
+  /**
+   * @dev Allows curators to set the base token uri
+   */
+  function setBaseTokenURI(string memory uri) 
+    external virtual onlyOwner
+  {
+    _setBaseURI(uri);
+  }
+
+  /**
+   * @dev Allows curators to set a token uri
+   */
+  function setTokenURI(uint256 tokenId, string memory uri) 
+    external virtual onlyOwner
+  {
+    _setTokenURI(tokenId, uri);
   }
 
   /**
@@ -31,7 +49,7 @@ contract ERC721BPresetURIStorage is
     public 
     view 
     virtual 
-    override(ERC721BBaseTokenURI, ERC721BStaticTokenURI, IERC721Metadata) 
+    override(ERC721BStaticTokenURI, IERC721Metadata) 
     returns(string memory) 
   {
     if(!_exists(tokenId)) revert NonExistentToken();
@@ -49,6 +67,8 @@ contract ERC721BPresetURIStorage is
       return string(abi.encodePacked(base, _tokenURI));
     }
 
-    return super.tokenURI(tokenId);
+    return bytes(base).length > 0 ? string(
+      abi.encodePacked(base, tokenId.toString())
+    ) : "";
   }
 }
