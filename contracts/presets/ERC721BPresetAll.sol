@@ -2,102 +2,32 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "../extensions/ERC721BURIContract.sol";
-
 import "../extensions/ERC721BBurnable.sol";
 import "../extensions/ERC721BPausable.sol";
-import "../extensions/ERC721BURIBase.sol";
-import "../extensions/ERC721BURIStorage.sol";
+import "../extensions/ERC721BStaticTokenURI.sol";
+import "../extensions/ERC721BContractURIStorage.sol";
 
-contract ERC721BPresetAll is
-  Ownable,
-  AccessControlEnumerable,
-  ERC721BBurnable, 
+import "./ERC721BPresetStandard.sol";
+
+contract ERC721BPresetAll is 
+  Ownable, 
+  ERC721BPresetStandard,
+  ERC721BBurnable,
   ERC721BPausable,
-  ERC721BURIBase,
-  ERC721BURIContract,
-  ERC721BURIStorage
-{
-  // ============ Constants ============
-
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-  bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-  bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
-
-  // ============ Deploy ============
+  ERC721BStaticTokenURI,
+  ERC721BContractURIStorage
+{ 
+  using Strings for uint256;
 
   /**
-   * @dev Sets the name, symbol and contract uri
+   * @dev Sets the name, symbol, contract URI
    */
   constructor(
-    string memory name_, 
-    string memory symbol_, 
-    string memory uri_
-  ) ERC721B(name_, symbol_) {
-    _setContractURI(uri_);
-
-    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-
-    _setupRole(MINTER_ROLE, _msgSender());
-    _setupRole(PAUSER_ROLE, _msgSender());
-    _setupRole(CURATOR_ROLE, _msgSender());
-  }
-
-  // ============ Read Methods ============
-
-  /**
-   * @dev See {IERC721-ownerOf}.
-   */
-  function ownerOf(uint256 tokenId) 
-    public 
-    view 
-    virtual 
-    override(ERC721B, ERC721BBurnable) 
-    returns(address) 
-  {
-    return super.ownerOf(tokenId);
-  }
-
-  /**
-   * @dev Describes linear override for `supportsInterface` used in 
-   * both `ERC721B` and `AccessControlEnumerable`
-   */
-  function supportsInterface(bytes4 interfaceId) 
-    public 
-    view 
-    virtual 
-    override(ERC721B, AccessControlEnumerable) 
-    returns(bool) 
-  {
-    return super.supportsInterface(interfaceId);
-  }
-
-  /**
-   * @dev Describes linear override for `tokenURI` used in 
-   * both `ERC721B` and `ERC721BURIStorage`
-   */
-  function tokenURI(uint256 tokenId) 
-    public 
-    view 
-    virtual 
-    override(ERC721B, ERC721BURIStorage) 
-    returns(string memory) 
-  {
-    return super.tokenURI(tokenId);
-  }
-
-  // ============ Write Methods ============
-
-  /**
-   * @dev Allows minters to mint
-   */
-  function mint(address to, uint256 quantity) 
-    external onlyRole(MINTER_ROLE) 
-  {
-    _safeMint(to, quantity);
+    string memory name, 
+    string memory symbol, 
+    string memory uri
+  ) ERC721BPresetStandard(name, symbol) {
+    _setContractURI(uri);
   }
 
   /**
@@ -109,7 +39,7 @@ contract ERC721BPresetAll is
    *
    * - the caller must have the `PAUSER_ROLE`.
    */
-  function pause() public virtual onlyRole(PAUSER_ROLE) {
+  function pause() public virtual onlyOwner {
     _pause();
   }
 
@@ -117,7 +47,7 @@ contract ERC721BPresetAll is
    * @dev Allows curators to set the base token uri
    */
   function setBaseTokenURI(string memory uri) 
-    external virtual onlyRole(CURATOR_ROLE)
+    external virtual onlyOwner
   {
     _setBaseURI(uri);
   }
@@ -126,9 +56,39 @@ contract ERC721BPresetAll is
    * @dev Allows curators to set a token uri
    */
   function setTokenURI(uint256 tokenId, string memory uri) 
-    external virtual onlyRole(CURATOR_ROLE)
+    external virtual onlyOwner
   {
     _setTokenURI(tokenId, uri);
+  }
+
+  /**
+   * @dev See {IERC721Metadata-tokenURI}.
+   */
+  function tokenURI(uint256 tokenId) 
+    public 
+    view 
+    virtual 
+    override(ERC721BStaticTokenURI, IERC721Metadata)
+    returns(string memory) 
+  {
+    if(!_exists(tokenId)) revert NonExistentToken();
+
+    string memory _tokenURI = staticTokenURI(tokenId);
+    string memory base = baseTokenURI();
+
+    // If there is no base URI, return the token URI.
+    if (bytes(base).length == 0) {
+      return _tokenURI;
+    }
+  
+    // If both are set, concatenate the baseURI and tokenURI (via abi.encodePacked).
+    if (bytes(_tokenURI).length > 0) {
+      return string(abi.encodePacked(base, _tokenURI));
+    }
+
+    return bytes(base).length > 0 ? string(
+      abi.encodePacked(base, tokenId.toString())
+    ) : "";
   }
 
   /**
@@ -140,47 +100,66 @@ contract ERC721BPresetAll is
    *
    * - the caller must have the `PAUSER_ROLE`.
    */
-  function unpause() public virtual onlyRole(PAUSER_ROLE) {
+  function unpause() public virtual onlyOwner {
     _unpause();
   }
 
-  // ============ Internal Methods ============
-  
+  // ============ Overrides ============
+
   /**
-   * @dev Describes linear override for `_baseURI` used in 
-   * both `ERC721B` and `ERC721BURIBase`
+   * @dev Describes linear override for `ownerOf` used in 
+   * both `ERC721B`, `ERC721BBurnable` and `IERC721`
    */
-  function _baseURI() 
-    internal 
+  function ownerOf(uint256 tokenId) 
+    public 
     view 
     virtual 
-    override(ERC721B, ERC721BURIBase) 
-    returns(string memory)
+    override(ERC721B, ERC721BBurnable, IERC721)
+    returns(address) 
   {
-    return super._baseURI();
+    return super.ownerOf(tokenId);
   }
 
   /**
-   * @dev Describes linear override for `_beforeTokenTransfer` used in 
+   * @dev Describes linear override for `supportsInterface` used in 
+   * both `ERC721B` and `ERC721BPresetStandard`
+   */
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, ERC721BPresetStandard) returns(bool) 
+  {
+    return super.supportsInterface(interfaceId);
+  }
+
+  /**
+   * @dev Describes linear override for `totalSupply` used in 
+   * both `ERC721B` and `ERC721BBurnable`
+   */
+  function totalSupply() 
+    public 
+    virtual 
+    view 
+    override(ERC721B, ERC721BBurnable) 
+    returns(uint256) 
+  {
+    return super.totalSupply();
+  }
+
+  /**
+   * @dev Describes linear override for `_beforeTokenTransfers` used in 
    * both `ERC721B` and `ERC721BPausable`
    */
   function _beforeTokenTransfers(
     address from,
     address to,
     uint256 startTokenId,
-    uint256 quantity
+    uint256 amount
   ) internal virtual override(ERC721B, ERC721BPausable) {
-    super._beforeTokenTransfers(from, to, startTokenId, quantity);
+    super._beforeTokenTransfers(from, to, startTokenId, amount);
   }
 
   /**
-   * @dev Returns whether `tokenId` exists.
-   *
-   * Tokens can be managed by their owner or approved accounts via 
-   * {approve} or {setApprovalForAll}.
-   *
-   * Tokens start existing when they are minted (`_mint`),
-   * and stop existing when they are burned (`_burn`).
+   * @dev Describes linear override for `_exists` used in 
+   * both `ERC721B` and `ERC721BBurnable`
    */
   function _exists(uint256 tokenId) 
     internal 

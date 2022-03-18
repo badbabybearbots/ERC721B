@@ -7,7 +7,7 @@ import "../ERC721B.sol";
 /**
  * @dev ERC721B contract with a URI descriptor
  */
-abstract contract ERC721BURIContract is ERC721B {
+abstract contract ERC721BContractURIStorage is ERC721B {
   //immutable contract uri
   string private _contractURI;
 

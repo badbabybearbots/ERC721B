@@ -5,8 +5,6 @@ pragma solidity ^0.8.0;
 import "../ERC721B.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-error TransferWhilePaused();
-
 /**
  * @dev ERC721B token with pausable token transfers, minting and burning.
  *
@@ -16,19 +14,16 @@ error TransferWhilePaused();
  */
 abstract contract ERC721BPausable is Pausable, ERC721B {
   /**
-   * @dev See {ERC721B-_beforeTokenTransfer}.
-   *
-   * Requirements:
-   *
-   * - the contract must not be paused.
+   * @dev Hook that is called before a set of serially-ordered token ids 
+   * are about to be transferred. This includes minting.
    */
   function _beforeTokenTransfers(
     address from,
     address to,
     uint256 startTokenId,
-    uint256 quantity
+    uint256 amount
   ) internal virtual override {
-    super._beforeTokenTransfers(from, to, startTokenId, quantity);
-    if (paused()) revert TransferWhilePaused();
+    if (paused()) revert InvalidCall();
+    super._beforeTokenTransfers(from, to, startTokenId, amount);
   }
 }

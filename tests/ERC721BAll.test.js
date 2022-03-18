@@ -110,7 +110,7 @@ describe('ERC721B All Tests', function () {
     await expect(
       contractOwner.withContract.mint(tokenOwner1.address, 3)
     ).to.be.revertedWith(
-      'TransferWhilePaused()'
+      'InvalidCall()'
     )
 
     await expect(
@@ -120,13 +120,13 @@ describe('ERC721B All Tests', function () {
         2
       )
     ).to.be.revertedWith(
-      'TransferWhilePaused()'
+      'InvalidCall()'
     )
 
     await expect(
       tokenOwner1.withContract.burn(2)
     ).to.be.revertedWith(
-      'TransferWhilePaused()'
+      'InvalidCall()'
     )
 
     await contractOwner.withContract.unpause()

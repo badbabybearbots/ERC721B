@@ -4,43 +4,32 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
+error InvalidCall();
 error BalanceQueryZeroAddress();
 error NonExistentToken();
 error ApprovalToCurrentOwner();
 error ApprovalOwnerIsOperator();
-error NotOwnerOrApproved();
 error NotERC721Receiver();
-error TransferToZeroAddress();
-error InvalidAmount();
 error ERC721ReceiverNotReceived();
-error TransferFromNotOwner();
 
 /**
  * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] 
  * Non-Fungible Token Standard, including the Metadata extension and 
  * token Auto-ID generation.
+ *
+ * You must provide `name()` `symbol()` and `tokenURI(uint256 tokenId)`
+ * to conform with IERC721Metadata
  */
-contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
-  using Address for address;
-  using Strings for uint256;
+abstract contract ERC721B is Context, ERC165, IERC721 {
 
   // ============ Storage ============
 
-  // Token name
-  string private _name;
-  // Token symbol
-  string private _symbol;
   // The last token id minted
   uint256 private _lastTokenId;
-
   // Mapping from token ID to owner address
   mapping(uint256 => address) internal _owners;
   // Mapping owner address to token count
@@ -50,17 +39,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   mapping(uint256 => address) private _tokenApprovals;
   // Mapping from owner to operator approvals
   mapping(address => mapping(address => bool)) private _operatorApprovals;
-
-  // ============ Deploy ============
-
-  /**
-   * @dev Initializes the contract by setting a `name` and a `symbol` 
-   * to the token collection.
-   */
-  constructor(string memory name_, string memory symbol_) {
-    _name = name_;
-    _symbol = symbol_;
-  }
 
   // ============ Read Methods ============
 
@@ -75,9 +53,9 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   /**
-   * @dev Returns the last token id minted
+   * @dev Shows the overall amount of tokens generated in the contract
    */
-  function lastTokenId() public view virtual returns(uint256) {
+  function totalSupply() public view virtual returns(uint256) {
     return _lastTokenId;
   }
 
@@ -111,43 +89,13 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   /**
-   * @dev See {IERC721Metadata-name}.
-   */
-  function name() public view virtual override returns(string memory) {
-    return _name;
-  }
-
-  /**
    * @dev See {IERC165-supportsInterface}.
    */
   function supportsInterface(bytes4 interfaceId) 
     public view virtual override(ERC165, IERC165) returns(bool) 
   {
-    return
-      interfaceId == type(IERC721).interfaceId ||
-      interfaceId == type(IERC721Metadata).interfaceId ||
-      super.supportsInterface(interfaceId);
-  }
-
-  /**
-   * @dev See {IERC721Metadata-symbol}.
-   */
-  function symbol() public view virtual override returns(string memory) {
-    return _symbol;
-  }
-
-  /**
-   * @dev See {IERC721Metadata-tokenURI}.
-   */
-  function tokenURI(uint256 tokenId) 
-    public view virtual override returns (string memory) 
-  {
-    if (!_exists(tokenId)) revert NonExistentToken();
-
-    string memory baseURI = _baseURI();
-    return bytes(baseURI).length > 0 ? string(
-      abi.encodePacked(baseURI, tokenId.toString())
-    ) : "";
+    return interfaceId == type(IERC721).interfaceId
+      || super.supportsInterface(interfaceId);
   }
 
   // ============ Approval Methods ============
@@ -238,6 +186,90 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     emit ApprovalForAll(owner, operator, approved);
   }
 
+  // ============ Mint Methods ============
+
+  /**
+   * @dev Mints `tokenId` and transfers it to `to`.
+   *
+   * WARNING: Usage of this method is discouraged, use {_safeMint} 
+   * whenever possible
+   *
+   * Requirements:
+   *
+   * - `tokenId` must not exist.
+   * - `to` cannot be the zero address.
+   *
+   * Emits a {Transfer} event.
+   */
+  function _mint(
+    address to,
+    uint256 amount,
+    bytes memory _data,
+    bool safeCheck
+  ) private {
+    if(amount == 0 || to == address(0)) revert InvalidCall();
+    uint256 startTokenId = _lastTokenId + 1;
+    
+    _beforeTokenTransfers(address(0), to, startTokenId, amount);
+    
+    unchecked {
+      _lastTokenId += amount;
+      _balances[to] += amount;
+      _owners[startTokenId] = to;
+
+      _afterTokenTransfers(address(0), to, startTokenId, amount);
+
+      uint256 updatedIndex = startTokenId;
+      //if do safe check and,
+      //check if contract one time (instead of loop)
+      //see: @openzep/utils/Address.sol
+      if (safeCheck && to.code.length > 0) {
+        //loop emit transfer and received check
+        for (uint256 i; i < amount; i++) {
+          emit Transfer(address(0), to, updatedIndex);
+          if (!_checkOnERC721Received(address(0), to, updatedIndex, _data))
+            revert ERC721ReceiverNotReceived();
+          updatedIndex++;
+        }
+        return;
+      }
+
+      for (uint256 i; i < amount; i++) {
+        emit Transfer(address(0), to, updatedIndex);
+        updatedIndex++;
+      }
+    }
+  }
+
+  /**
+   * @dev Safely mints `tokenId` and transfers it to `to`.
+   *
+   * Requirements:
+   *
+   * - `tokenId` must not exist.
+   * - If `to` refers to a smart contract, it must implement 
+   *   {IERC721Receiver-onERC721Received}, which is called upon a 
+   *   safe transfer.
+   *
+   * Emits a {Transfer} event.
+   */
+  function _safeMint(address to, uint256 amount) internal virtual {
+    _safeMint(to, amount, "");
+  }
+
+  /**
+   * @dev Same as {xref-ERC721-_safeMint-address-uint256-}[`_safeMint`], 
+   * with an additional `data` parameter which is forwarded in 
+   * {IERC721Receiver-onERC721Received} to contract recipients.
+   */
+  function _safeMint(
+    address to,
+    uint256 amount,
+    bytes memory _data
+  ) internal virtual {
+    _mint(to, amount, _data, true);
+  }
+
   // ============ Transfer Methods ============
 
   /**
@@ -314,90 +346,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   /**
-   * @dev Mints `tokenId` and transfers it to `to`.
-   *
-   * WARNING: Usage of this method is discouraged, use {_safeMint} 
-   * whenever possible
-   *
-   * Requirements:
-   *
-   * - `tokenId` must not exist.
-   * - `to` cannot be the zero address.
-   *
-   * Emits a {Transfer} event.
-   */
-  function _mint(
-    address to,
-    uint256 amount,
-    bytes memory _data,
-    bool safeCheck
-  ) internal virtual {
-    if(amount == 0) revert InvalidAmount();
-    if (to == address(0)) revert TransferToZeroAddress();
-
-    uint256 startTokenId = _lastTokenId + 1;
-    _beforeTokenTransfers(address(0), to, startTokenId, amount);
-
-    unchecked {
-      _lastTokenId += amount;
-      _balances[to] += amount;
-      _owners[startTokenId] = to;
-
-      uint256 updatedIndex = startTokenId;
-      //if do safe check
-      if (safeCheck) {
-        //check if contract one time (instead of loop)
-        if (to.isContract()) {
-          //loop emit transfer and received check
-          for (uint256 i; i < amount; i++) {
-            emit Transfer(address(0), to, updatedIndex);
-            if (!_checkOnERC721Received(address(0), to, updatedIndex, _data))
-              revert ERC721ReceiverNotReceived();
-            updatedIndex++;
-          }
-          return;
-        } 
-      }
-
-      for (uint256 i; i < amount; i++) {
-        emit Transfer(address(0), to, updatedIndex);
-        updatedIndex++;
-      }
-    }
-
-    _afterTokenTransfers(address(0), to, startTokenId, amount);
-  }
-
-  /**
-   * @dev Safely mints `tokenId` and transfers it to `to`.
-   *
-   * Requirements:
-   *
-   * - `tokenId` must not exist.
-   * - If `to` refers to a smart contract, it must implement 
-   *   {IERC721Receiver-onERC721Received}, which is called upon a 
-   *   safe transfer.
-   *
-   * Emits a {Transfer} event.
-   */
-  function _safeMint(address to, uint256 amount) internal virtual {
-    _safeMint(to, amount, "");
-  }
-
-  /**
-   * @dev Same as {xref-ERC721-_safeMint-address-uint256-}[`_safeMint`], 
-   * with an additional `data` parameter which is forwarded in 
-   * {IERC721Receiver-onERC721Received} to contract recipients.
-   */
-  function _safeMint(
-    address to,
-    uint256 amount,
-    bytes memory _data
-  ) internal virtual {
-    _mint(to, amount, _data, true);
-  }
-
-  /**
    * @dev Safely transfers `tokenId` token from `from` to `to`, checking 
    * first that contract recipients are aware of the ERC721 protocol to 
    * prevent tokens from being forever locked.
@@ -428,11 +376,10 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
     bytes memory _data
   ) internal virtual {
     _transfer(from, to, tokenId);
-    if (to.isContract() 
+    //see: @openzep/utils/Address.sol
+    if (to.code.length > 0
       && !_checkOnERC721Received(from, to, tokenId, _data)
-    ) {
-        revert ERC721ReceiverNotReceived();
-    }
+    ) revert ERC721ReceiverNotReceived();
   }
 
   /**
@@ -446,21 +393,17 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
    *
    * Emits a {Transfer} event.
    */
-  function _transfer(
-    address from,
-    address to,
-    uint256 tokenId
-  ) internal virtual {
-    if (to == address(0)) revert TransferToZeroAddress();
+  function _transfer(address from, address to, uint256 tokenId) private {
+    if (to == address(0)) revert InvalidCall();
     //get owner
     address owner = ERC721B.ownerOf(tokenId);
     //owner should be the `from`
-    if (from != owner) revert TransferFromNotOwner();
-    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
-      revert NotOwnerOrApproved();
+    if (from != owner 
+      || !_isApprovedOrOwner(_msgSender(), tokenId, owner)
+    ) revert InvalidCall();
 
     _beforeTokenTransfers(from, to, tokenId, 1);
-
+    
     // Clear approvals from the previous owner
     _approve(address(0), tokenId, from);
 
@@ -481,15 +424,6 @@ contract ERC721B is Context, ERC165, IERC721, IERC721Metadata {
   }
 
   // ============ TODO Methods ============
-
-  /**
-   * @dev Base URI for computing {tokenURI}. If set, the resulting URI 
-   * for each token will be the concatenation of the `baseURI` and the 
-   * `tokenId`. Empty by default, can be overriden in child contracts.
-   */
-  function _baseURI() internal view virtual returns (string memory) {
-    return "";
-  }
 
   /**
    * @dev Hook that is called before a set of serially-ordered token ids 

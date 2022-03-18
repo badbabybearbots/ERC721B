@@ -10,45 +10,15 @@ import "@openzeppelin/contracts/utils/Context.sol";
  * @dev ERC721B Token that can be irreversibly burned (destroyed).
  */
 abstract contract ERC721BBurnable is Context, ERC721B {
+
+  // ============ Storage ============
+
+  //mapping of token id to burned?
   mapping(uint256 => bool) private _burned;
+  //count of how many burned
   uint256 private _totalBurned;
 
-  /**
-   * @dev Burns `tokenId`. See {ERC721B-_burn}.
-   *
-   * Requirements:
-   *
-   * - The caller must own `tokenId` or be an approved operator.
-   */
-  function burn(uint256 tokenId) public virtual {
-    address owner = ERC721B.ownerOf(tokenId);
-
-    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
-      revert NotOwnerOrApproved();
-
-    _beforeTokenTransfers(owner, address(0), tokenId, 1);
-
-    // Clear approvals
-    _approve(address(0), tokenId, owner);
-
-    unchecked {
-      //this is the situation when _owners are normalized
-      _balances[owner] -= 1;
-      _burned[tokenId] = true;
-      _owners[tokenId] = address(0);
-      _totalBurned++;
-
-      //this is the situation when _owners are not normalized
-      uint256 nextTokenId = tokenId + 1;
-      if (nextTokenId <= lastTokenId() && _owners[nextTokenId] == address(0)) {
-        _owners[nextTokenId] = owner;
-      }
-    }
-
-    _afterTokenTransfers(owner, address(0), tokenId, 1);
-
-    emit Transfer(owner, address(0), tokenId);
-  }
+  // ============ Read Methods ============
 
   /**
    * @dev See {IERC721-ownerOf}.
@@ -63,9 +33,49 @@ abstract contract ERC721BBurnable is Context, ERC721B {
   /**
    * @dev Shows the overall amount of tokens generated in the contract
    */
-  function totalSupply() public virtual view returns (uint256) {
-    return lastTokenId() - _totalBurned;
+  function totalSupply() public virtual view override returns(uint256) {
+    return super.totalSupply() - _totalBurned;
   }
+
+  // ============ Write Methods ============
+
+  /**
+   * @dev Burns `tokenId`. See {ERC721B-_burn}.
+   *
+   * Requirements:
+   *
+   * - The caller must own `tokenId` or be an approved operator.
+   */
+  function burn(uint256 tokenId) public virtual {
+    address owner = ERC721B.ownerOf(tokenId);
+    if (!_isApprovedOrOwner(_msgSender(), tokenId, owner)) 
+      revert InvalidCall();
+
+    _beforeTokenTransfers(owner, address(0), tokenId, 1);
+    
+    // Clear approvals
+    _approve(address(0), tokenId, owner);
+
+    unchecked {
+      //this is the situation when _owners are normalized
+      _balances[owner] -= 1;
+      _burned[tokenId] = true;
+      _owners[tokenId] = address(0);
+      _totalBurned++;
+
+      //this is the situation when _owners are not normalized
+      uint256 nextTokenId = tokenId + 1;
+      if (nextTokenId <= totalSupply() && _owners[nextTokenId] == address(0)) {
+        _owners[nextTokenId] = owner;
+      }
+    }
+
+    _afterTokenTransfers(owner, address(0), tokenId, 1);
+
+    emit Transfer(owner, address(0), tokenId);
+  }
+
+  // ============ Internal Methods ============
 
   /**
    * @dev Returns whether `tokenId` exists.
