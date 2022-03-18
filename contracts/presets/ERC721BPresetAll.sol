@@ -121,6 +121,16 @@ contract ERC721BPresetAll is
   }
 
   /**
+   * @dev Describes linear override for `supportsInterface` used in 
+   * both `ERC721B` and `ERC721BPresetStandard`
+   */
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, ERC721BPresetStandard) returns(bool) 
+  {
+    return super.supportsInterface(interfaceId);
+  }
+
+  /**
    * @dev Describes linear override for `totalSupply` used in 
    * both `ERC721B` and `ERC721BBurnable`
    */

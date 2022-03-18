@@ -43,6 +43,16 @@ contract ERC721BPresetURIStorage is
   }
 
   /**
+   * @dev Describes linear override for `supportsInterface` used in 
+   * both `ERC721B` and `ERC721BPresetStandard`
+   */
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, ERC721BPresetStandard) returns(bool) 
+  {
+    return super.supportsInterface(interfaceId);
+  }
+
+  /**
    * @dev See {IERC721Metadata-tokenURI}.
    */
   function tokenURI(uint256 tokenId) 

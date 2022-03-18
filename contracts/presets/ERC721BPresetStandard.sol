@@ -24,4 +24,14 @@ contract ERC721BPresetStandard is
   function mint(address to, uint256 quantity) external onlyOwner {
     _safeMint(to, quantity);
   }
+
+  /**
+   * @dev See {IERC165-supportsInterface}.
+   */
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, IERC165) returns(bool) 
+  {
+    return interfaceId == type(IERC721Metadata).interfaceId
+      || super.supportsInterface(interfaceId);
+  }
 }

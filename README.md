@@ -50,6 +50,13 @@ contract MyCollection is Ownable, ERC721BBaseTokenURI
   function symbol() external view returns(string memory) {
     return "MYC";
   }
+
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, IERC165) returns(bool) 
+  {
+    return interfaceId == type(IERC721Metadata).interfaceId
+      || super.supportsInterface(interfaceId);
+  }
 }
 ```
 
@@ -76,6 +83,13 @@ contract MyCollection is Ownable, ERC721BBaseTokenURI
 
   function setTokenURI(uint256 tokenId, string memory uri) external onlyOwner {
     _setTokenURI(tokenId, uri);
+  }
+
+  function supportsInterface(bytes4 interfaceId) 
+    public view virtual override(ERC721B, IERC165) returns(bool) 
+  {
+    return interfaceId == type(IERC721Metadata).interfaceId
+      || super.supportsInterface(interfaceId);
   }
 }
 ```
