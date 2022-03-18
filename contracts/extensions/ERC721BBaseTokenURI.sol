@@ -2,13 +2,27 @@
 
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "../ERC721B.sol";
 
 /**
  * @dev ERC721B token where token URIs are determined with a base URI
  */
-abstract contract ERC721BURIBase is ERC721B {
+abstract contract ERC721BBaseTokenURI is ERC721B, IERC721Metadata {
+  using Strings for uint256;
   string private _baseTokenURI;
+
+  /**
+   * @dev See {IERC721Metadata-tokenURI}.
+   */
+  function tokenURI(uint256 tokenId) public view virtual returns(string memory) {
+    if(!_exists(tokenId)) revert NonExistentToken();
+    string memory baseURI = _baseTokenURI;
+    return bytes(baseURI).length > 0 ? string(
+      abi.encodePacked(baseURI, tokenId.toString())
+    ) : "";
+  }
   
   /**
    * @dev The base URI for token data ex. https://creatures-api.opensea.io/api/creature/
@@ -16,15 +30,6 @@ abstract contract ERC721BURIBase is ERC721B {
    *  Strings.strConcat(baseTokenURI(), Strings.uint2str(tokenId))
    */
   function baseTokenURI() public view returns (string memory) {
-    return _baseURI();
-  }
-
-  /**
-   * @dev Base URI for computing {tokenURI}. If set, the resulting URI 
-   * for each token will be the concatenation of the `baseURI` and the 
-   * `tokenId`. Empty by default, can be overriden in child contracts.
-   */
-  function _baseURI() internal view virtual override returns (string memory) {
     return _baseTokenURI;
   }
 
