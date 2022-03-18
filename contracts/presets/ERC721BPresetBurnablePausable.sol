@@ -2,42 +2,22 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-
 import "../extensions/ERC721BBurnable.sol";
 import "../extensions/ERC721BPausable.sol";
 
+import "./ERC721BPresetStandard.sol";
+
 contract ERC721BPresetBurnablePausable is 
   Ownable, 
-  ERC721BBurnable, 
-  ERC721BPausable 
-{
+  ERC721BPresetStandard,
+  ERC721BBurnable,
+  ERC721BPausable
+{ 
   /**
    * @dev Sets the name, symbol
    */
-  constructor(string memory name_, string memory symbol_) 
-    ERC721B(name_, symbol_) 
-  {}
-
-  /**
-   * @dev Allows owner to mint
-   */
-  function mint(address to, uint256 quantity) external onlyOwner {
-    _safeMint(to, quantity);
-  }
-
-  /**
-   * @dev See {IERC721-ownerOf}.
-   */
-  function ownerOf(uint256 tokenId) 
-    public 
-    view 
-    virtual 
-    override(ERC721B, ERC721BBurnable) 
-    returns(address) 
-  {
-    return super.ownerOf(tokenId);
-  }
+  constructor(string memory name, string memory symbol) 
+    ERC721BPresetStandard(name, symbol) {}
 
   /**
    * @dev Pauses all token transfers.
@@ -65,27 +45,61 @@ contract ERC721BPresetBurnablePausable is
     _unpause();
   }
 
+  // ============ Overrides ============
+
   /**
-   * @dev Describes linear override for `_beforeTokenTransfer` used in 
-   * both `ERC721B` and `ERC721BPausable`
+   * @dev Describes linear override for `ownerOf` used in 
+   * both `ERC721B`, `ERC721BBurnable` and `IERC721`
    */
-  function _beforeTokenTransfers(
-    address from,
-    address to,
-    uint256 startTokenId,
-    uint256 quantity
-  ) internal virtual override(ERC721B, ERC721BPausable) {
-    super._beforeTokenTransfers(from, to, startTokenId, quantity);
+  function ownerOf(uint256 tokenId) 
+    public 
+    view 
+    virtual 
+    override(ERC721B, ERC721BBurnable, IERC721)
+    returns(address) 
+  {
+    return super.ownerOf(tokenId);
   }
 
   /**
-   * @dev Returns whether `tokenId` exists.
-   *
-   * Tokens can be managed by their owner or approved accounts via 
-   * {approve} or {setApprovalForAll}.
-   *
-   * Tokens start existing when they are minted (`_mint`),
-   * and stop existing when they are burned (`_burn`).
+   * @dev Describes linear override for `totalSupply` used in 
+   * both `ERC721B` and `ERC721BBurnable`
+   */
+  function totalSupply() 
+    public 
+    virtual 
+    view 
+    override(ERC721B, ERC721BBurnable) 
+    returns(uint256) 
+  {
+    return super.totalSupply();
+  }
+
+  /**
+   * @dev Describes linear override for `_doMint` used in 
+   * both `ERC721B` and `ERC721BPausable` 
+   */
+  function _doMint(
+    address to,
+    uint256 amount,
+    uint256 startTokenId
+  ) internal virtual override(ERC721B, ERC721BPausable)  {
+    super._doMint(to, amount, startTokenId);
+  }
+
+  /**
+   * @dev Describes linear override for `_doTransfer` used in 
+   * both `ERC721B` and `ERC721BPausable`
+   */
+  function _doTransfer(address from, address to, uint256 tokenId) 
+    internal virtual override(ERC721B, ERC721BPausable)
+  {
+    super._doTransfer(from, to, tokenId);
+  }
+
+  /**
+   * @dev Describes linear override for `_exists` used in 
+   * both `ERC721B` and `ERC721BBurnable`
    */
   function _exists(uint256 tokenId) 
     internal 
