@@ -20,7 +20,7 @@ abstract contract ERC721BBaseTokenURI is ERC721B, IERC721Metadata {
     if(!_exists(tokenId)) revert NonExistentToken();
     string memory baseURI = _baseTokenURI;
     return bytes(baseURI).length > 0 ? string(
-      abi.encodePacked(baseURI, tokenId.toString())
+      abi.encodePacked(baseURI, tokenId.toString(), ".json")
     ) : "";
   }
   

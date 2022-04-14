@@ -30,26 +30,28 @@ async function getSigners(name, ...params) {
   return signers
 }
 
+function signTransfer(from, to, tokenId, nonce) {
+  return Buffer.from(
+    ethers.utils.solidityKeccak256(
+      ['string', 'address', 'address', 'uint256', 'uint256'],
+      ['transfer', from, to, tokenId, nonce]
+    ).slice(2),
+    'hex'
+  )
+}
+
 describe('ERC721B All Tests', function () {
   before(async function() {
     const [
       contractOwner, 
       tokenOwner1, 
-      tokenOwner2, 
-      tokenOwner3, 
-      tokenOwner4, 
-      tokenOwner5, 
-      tokenOwner6
+      tokenOwner2
     ] = await getSigners('ERC721BPresetAll', 'test', 'TEST', 'http://www.example.com/')
     
     this.signers = { 
       contractOwner, 
       tokenOwner1, 
-      tokenOwner2,
-      tokenOwner3, 
-      tokenOwner4, 
-      tokenOwner5, 
-      tokenOwner6
+      tokenOwner2
     }
   })
 
@@ -149,5 +151,68 @@ describe('ERC721B All Tests', function () {
     expect(await contractOwner.withContract.baseTokenURI()).to.equal('foo')
     expect(await contractOwner.withContract.tokenURI(6)).to.equal('foobar')
     expect(await contractOwner.withContract.tokenURI(7)).to.equal('foo7')
+  })
+
+  it('Should sign off a transfer', async function () {
+    const { contractOwner, tokenOwner1, tokenOwner2 } = this.signers
+
+    const message = signTransfer(tokenOwner1.address, tokenOwner2.address, 4, 1)
+    const signature = await tokenOwner1.signMessage(message)
+
+    expect(
+      await contractOwner.withContract.isTransferConsumed(tokenOwner1.address, tokenOwner2.address, 4, 1)
+    ).to.equal(false)
+
+    await contractOwner.withContract['signedTransferFrom(address,address,uint256,uint256,bytes)'](
+      tokenOwner1.address, 
+      tokenOwner2.address, 
+      4, 1, signature
+    )
+    expect(await contractOwner.withContract.ownerOf(4)).to.equal(tokenOwner2.address)
+    expect(
+      await contractOwner.withContract.isTransferConsumed(tokenOwner1.address, tokenOwner2.address, 4, 1)
+    ).to.equal(true)
+  })
+
+  it('Should not sign off a transfer', async function () {
+    const { contractOwner, tokenOwner1, tokenOwner2 } = this.signers
+
+    let message = signTransfer(tokenOwner1.address, tokenOwner2.address, 4, 1)
+    let signature = await tokenOwner1.signMessage(message)
+
+    await expect(//already consumed
+      contractOwner.withContract['signedTransferFrom(address,address,uint256,uint256,bytes)'](
+        tokenOwner1.address, 
+        tokenOwner2.address, 
+        4, 1, signature
+      )
+    ).to.be.revertedWith('InvalidCall()')
+
+    message = signTransfer(tokenOwner1.address, tokenOwner2.address, 2, 1)
+    signature = await tokenOwner1.signMessage(message)
+
+    await expect(//wrong nonce
+      contractOwner.withContract['signedTransferFrom(address,address,uint256,uint256,bytes)'](
+        tokenOwner1.address, 
+        tokenOwner2.address, 
+        2, 2, signature
+      )
+    ).to.be.revertedWith('InvalidCall()')
+
+    await expect(//wrong token
+      contractOwner.withContract['signedTransferFrom(address,address,uint256,uint256,bytes)'](
+        tokenOwner1.address, 
+        tokenOwner2.address, 
+        3, 1, signature
+      )
+    ).to.be.revertedWith('InvalidCall()')
+
+    await expect(//wrong receipient
+      contractOwner.withContract['signedTransferFrom(address,address,uint256,uint256,bytes)'](
+        contractOwner.address, 
+        tokenOwner2.address, 
+        2, 1, signature
+      )
+    ).to.be.revertedWith('InvalidCall()')
   })
 })

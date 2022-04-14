@@ -68,7 +68,13 @@ describe('ERC721B Standard Tests', function () {
       tokenOwner5
     } = this.signers
 
-    await contractOwner.withContract.mint(tokenOwner5.address, 5)
+    expect(contractOwner.withContract.mint(tokenOwner5.address, 5))
+      .to.emit(contractOwner.withContract, 'Transfer')
+      .withArgs(
+        '0x0000000000000000000000000000000000000000', 
+        tokenOwner5.address,
+        1
+      )
     await contractOwner.withContract.mint(tokenOwner4.address, 4)
     await contractOwner.withContract.mint(tokenOwner3.address, 3)
 

@@ -62,7 +62,7 @@ contract ERC721BPresetURIStorage is
     override(ERC721BStaticTokenURI, IERC721Metadata) 
     returns(string memory) 
   {
-    if(!_exists(tokenId)) revert NonExistentToken();
+    if(!_exists(tokenId)) revert InvalidCall();
 
     string memory _tokenURI = staticTokenURI(tokenId);
     string memory base = baseTokenURI();
