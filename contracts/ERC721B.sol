@@ -155,6 +155,37 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
   }
 
   /**
+   * @dev transfers token considering approvals
+   */
+  function _approveTransfer(
+    address spender, 
+    address from, 
+    address to, 
+    uint256 tokenId
+  ) internal virtual {
+    if (!_isApprovedOrOwner(spender, tokenId, from)) 
+      revert InvalidCall();
+
+    _transfer(from, to, tokenId);
+  }
+
+  /**
+   * @dev Safely transfers token considering approvals
+   */
+  function _approveSafeTransfer(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory _data
+  ) internal virtual {
+    _approveTransfer(_msgSender(), from, to, tokenId);
+    //see: @openzep/utils/Address.sol
+    if (to.code.length > 0
+      && !_checkOnERC721Received(from, to, tokenId, _data)
+    ) revert ERC721ReceiverNotReceived();
+  }
+
+  /**
    * @dev Returns whether `spender` is allowed to manage `tokenId`.
    *
    * Requirements:
@@ -162,9 +193,9 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
    * - `tokenId` must exist.
    */
   function _isApprovedOrOwner(
-      address spender, 
-      uint256 tokenId, 
-      address owner
+    address spender, 
+    uint256 tokenId, 
+    address owner
   ) internal view virtual returns(bool) {
     return spender == owner 
       || getApproved(tokenId) == spender 
@@ -220,24 +251,23 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
       _afterTokenTransfers(address(0), to, startTokenId, amount);
 
       uint256 updatedIndex = startTokenId;
+      uint256 endIndex = updatedIndex + amount;
       //if do safe check and,
       //check if contract one time (instead of loop)
       //see: @openzep/utils/Address.sol
       if (safeCheck && to.code.length > 0) {
         //loop emit transfer and received check
-        for (uint256 i; i < amount; i++) {
+        do {
           emit Transfer(address(0), to, updatedIndex);
-          if (!_checkOnERC721Received(address(0), to, updatedIndex, _data))
+          if (!_checkOnERC721Received(address(0), to, updatedIndex++, _data))
             revert ERC721ReceiverNotReceived();
-          updatedIndex++;
-        }
+        } while (updatedIndex != endIndex);
         return;
       }
 
-      for (uint256 i; i < amount; i++) {
-        emit Transfer(address(0), to, updatedIndex);
-        updatedIndex++;
-      }
+      do {
+        emit Transfer(address(0), to, updatedIndex++);
+      } while (updatedIndex != endIndex);
     }
   }
 
@@ -280,7 +310,7 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
     address to,
     uint256 tokenId
   ) public virtual override {
-    _transfer(from, to, tokenId);
+    _approveTransfer(_msgSender(), from, to, tokenId);
   }
 
   /**
@@ -303,7 +333,7 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
     uint256 tokenId,
     bytes memory _data
   ) public virtual override {
-    _safeTransfer(from, to, tokenId, _data);
+    _approveSafeTransfer(from, to, tokenId, _data);
   }
 
   /**
@@ -394,13 +424,9 @@ abstract contract ERC721B is Context, ERC165, IERC721 {
    * Emits a {Transfer} event.
    */
   function _transfer(address from, address to, uint256 tokenId) private {
-    if (to == address(0)) revert InvalidCall();
-    //get owner
-    address owner = ERC721B.ownerOf(tokenId);
-    //owner should be the `from`
-    if (from != owner 
-      || !_isApprovedOrOwner(_msgSender(), tokenId, owner)
-    ) revert InvalidCall();
+    //if transfer to null or not the owner
+    if (to == address(0) || from != ERC721B.ownerOf(tokenId)) 
+      revert InvalidCall();
 
     _beforeTokenTransfers(from, to, tokenId, 1);
     

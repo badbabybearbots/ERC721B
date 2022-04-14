@@ -6,6 +6,7 @@ import "../extensions/ERC721BBurnable.sol";
 import "../extensions/ERC721BPausable.sol";
 import "../extensions/ERC721BStaticTokenURI.sol";
 import "../extensions/ERC721BContractURIStorage.sol";
+import "../extensions/ERC721BSignedTransfer.sol";
 
 import "./ERC721BPresetStandard.sol";
 
@@ -15,7 +16,8 @@ contract ERC721BPresetAll is
   ERC721BBurnable,
   ERC721BPausable,
   ERC721BStaticTokenURI,
-  ERC721BContractURIStorage
+  ERC721BContractURIStorage,
+  ERC721BSignedTransfer
 { 
   using Strings for uint256;
 
@@ -71,7 +73,7 @@ contract ERC721BPresetAll is
     override(ERC721BStaticTokenURI, IERC721Metadata)
     returns(string memory) 
   {
-    if(!_exists(tokenId)) revert NonExistentToken();
+    if(!_exists(tokenId)) revert InvalidCall();
 
     string memory _tokenURI = staticTokenURI(tokenId);
     string memory base = baseTokenURI();

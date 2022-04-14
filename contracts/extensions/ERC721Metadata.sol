@@ -33,5 +33,4 @@ abstract contract ERC721Metadata is IERC721Metadata {
   function symbol() public view virtual returns(string memory) {
     return _symbol;
   }
-  
 }

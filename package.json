@@ -1,6 +1,6 @@
 {
   "name": "erc721b",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "homepage": "https://github.com/badbabybearbots/erc721b",
   "bugs": {
@@ -24,7 +24,7 @@
     "@openzeppelin/contracts": "4.5.0",
     "chai": "4.3.4",
     "dotenv": "10.0.0",
-    "erc721a": "2.2.0",
+    "erc721a": "3.2.0",
     "eth-gas-reporter": "0.2.24",
     "ethereum-waffle": "3.4.0",
     "ethers": "5.4.1",
